@@ -13,7 +13,7 @@ const authenticateUser = (
   ) => {
     // Check if the user is authenticated by checking the session
     if (!req.session?.userId) {
-      return res.status(401).send('Unauthorized');
+      return res.render('Unauthorized');
     }
     next();
   };

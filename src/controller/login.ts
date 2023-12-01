@@ -1,15 +1,10 @@
 import createError from "http-errors";
 import express, { Request, Response, NextFunction } from "express";
-import bodyParser from "body-parser";
 import { z } from "zod";
 import bcrypt from 'bcrypt';
-import { match } from "assert";
 import { error } from "console";
 import { Session, SessionData } from 'express-session';
-
-interface AuthenticatedRequest extends Request {
-    session: Session & Partial<SessionData> & { userId?: number };
-  }
+import jwt from 'jsonwebtoken'
 
 interface AuthenticatedRequest extends Request {
   session: Session & Partial<SessionData> & { userId?: number };
@@ -24,13 +19,6 @@ const db = new sqlite3.Database(
   }
 );
 
-// implementation start here
-const router = express.Router();
-
-router.use(bodyParser.json());
-router.use(express.json());
-router.use(express.urlencoded({ extended: false }));
-
 // Zod to validate
 const userSchema = z.object({
     email: z.string({
@@ -44,14 +32,15 @@ const userSchema = z.object({
       }).min(6, "password must be at least 6 characters")
   });
   const strictNewUserSchema = userSchema.strict()
-const handleUserLogin = async (req: Request, res: Response, next: NextFunction) => {
-    try{
+export default async function handleUserLogin(req: AuthenticatedRequest, res: Response, next: NextFunction){
+  try{  
       const validation = strictNewUserSchema.parse(req.body);
       const { email, password } = validation;
   
       // checking the database for the record of that user
       const sql = `SELECT * FROM Users WHERE Email = ?;`;
     //   this is now an array of object for each record
+    const userDetailFromDatabase:Record<string, any> = { }
       const selectEmailFromDatabase:Record<string, any>[] = await new Promise((resolve, reject) => {
         db.all(sql, [email], (err: Error, users: any[]) => {
           if (err) {
@@ -61,45 +50,42 @@ const handleUserLogin = async (req: Request, res: Response, next: NextFunction) 
             }));
           } else {
             
-            return resolve(users);
+            return resolve(Object.assign(userDetailFromDatabase, ...users))
           }
         });
       });
   
-      const checkDatabaseForUserRecord = selectEmailFromDatabase.find((element: Record<string, string>) => element.Email === email);
       
       //unauthorized, kindly sign up or request access from admin;
-      if (!checkDatabaseForUserRecord) {
+      if (userDetailFromDatabase.Email !== email) {
         return res.status(401).json({
             message: `User with email ${email} does not exist, Kindly signup`
         })
         } 
     //   if that user exist, check for password
-        const matchPassword = await bcrypt.compare(password, checkDatabaseForUserRecord.Password)
-      if(matchPassword){
-        res.json({
-            'success': `User with Email: ${email} is logged in!`
+        const matchPassword = await bcrypt.compare(password, userDetailFromDatabase.Password)
+        const token = jwt.sign({userId: userDetailFromDatabase.UserId}, 'your-secret-key', { expiresIn: '1h'})
+        if(matchPassword){
+        // res.json({
+        //     message: `User with Email: ${email} is logged in!`,
+        //     token: token
+        // })
+        res.header('Authorization', `Bearer ${token}`);
+           res.json({
+            message: `User with Email: ${email} is logged in!`,
+            token: token
         })
       }
       else{
-        res.json({
+        res.status(401).json({
             message: `Incorrect password`,
             "statusCode": 401
         })
       }
-     
+      
     }
     catch(error){
         res.status(400).json({'message': error});
     }
+ 
   };
-  router.post("/", async (req: Request, res: Response, next: NextFunction) => {
-    const session = req.session as Session & Partial<SessionData> & { userId?: number };
-
-    await handleUserLogin(req, res, next);
-    session.userId = 123;
-  
-})
-
-
-export default router

@@ -6,8 +6,8 @@ import logger from 'morgan';
 import bodyParser from 'body-parser';
 import indexRouter from './routes/index';
 import registerNewUser from './routes/users';
-import usersLoginRouter from './routes/login';
-import signUpRouter from './routes/signup';
+import usersLoginRouter from './controller/login';
+import signUpRouter from './controller/signup';
 import notesRouter from './routes/notes';
 import session from "express-session";
 
@@ -19,7 +19,7 @@ app.use(
     saveUninitialized: true,
   })
 );
-app.use(bodyParser.json())
+//app.use(bodyParser.json())
 
 
 // view engine setup

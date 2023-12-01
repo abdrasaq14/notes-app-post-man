@@ -1,15 +1,9 @@
 import createError from "http-errors";
 import express, { Request as ExpressRequest, Request, Response, NextFunction } from "express";
-import bodyParser from "body-parser";
 import { ZodError, z } from "zod";
 import bcrypt from 'bcrypt';
-import { error } from "console";
 
 
-
-interface AuthenticatedRequest extends ExpressRequest {
-  user?: { UserId: number; Password: string }; // Adjust the properties according to your user object
-}
 const sqlite3 = require("sqlite3").verbose();
 const db = new sqlite3.Database(
   "/Users/macbook/Desktop/week-6-pod-d-abdrasaq14/lib/src/usersAndNote.db",
@@ -19,30 +13,6 @@ const db = new sqlite3.Database(
   }
 );
 
-// implementation start here
-const router = express.Router();
-
-//router.use(bodyParser.json());
-router.use(express.json());
-router.use(express.urlencoded({ extended: false }));
-
-/* GET NOTES listing. */
-
-router.get("/", function (req: Request, res: Response, next: NextFunction) {
-  const sql = `SELECT * FROM Notes`;
-
-  db.all(sql, function (err: Error, notes:any[]) {
-    if (err) {
-      console.error("Error in database operation:", err);
-      return
-    }
-    console.log("All users detail gotten");
-    return res.send(notes)  
-  });
-  
-});
-
-// CREATING NOTES LIST
 // new user schema
 const newUserSchema = z.object({
   fullname: z
@@ -65,11 +35,9 @@ const newUserSchema = z.object({
     invalid_type_error: "pass needs to be a string",
   }).min(6, "password must be at least 6 characters")
 });
-
 const strictNewUserSchema = newUserSchema.strict()
 
-
-const checkIfUserHasAccount = async (req: Request, res: Response, next: NextFunction) => {
+export default async function checkIfUserHasAccount(req: Request, res: Response, next: NextFunction){
   try {
     const validation = strictNewUserSchema.parse(req.body);
     const { fullname, gender, email, phone, address, password } = validation;
@@ -86,11 +54,12 @@ const checkIfUserHasAccount = async (req: Request, res: Response, next: NextFunc
     const checkDuplicateemail = selectEmailFromDatabase.find((element: Record<string, string>) => element.Email === email);
     // checking if the email already exists
     if (checkDuplicateemail) {
-      res.status(401).json({
+      return res.status(401).json({
           message: `User with ${email} already exist kindly login`,
           
     });
   }
+
     else{
        // Encrypt password
        const hashedPassword = await bcrypt.hash(password, 10);
@@ -108,17 +77,17 @@ const checkIfUserHasAccount = async (req: Request, res: Response, next: NextFunc
    
        db.run(insertSql, [fullname, gender, email, phone, address, hashedPassword], function (err: Error) {
          if (err) {
-           console.error("Error in database operation:", err);
+           return `Error in database operation: ${err}`;
            
          }
-   
-         console.log("Successful input:", req.body);
-         return res.status(201).json({
-           success: `New User with ${email} and password: ${hashedPassword} created`
-         });
+         else{
+          return res.status(201).json({
+            success: `New User with ${email} created, proceed to login`
+          });
+         }
+         
        });
    
-       next()
  }
   } catch (error) {
     if(error instanceof ZodError){
@@ -133,13 +102,4 @@ const checkIfUserHasAccount = async (req: Request, res: Response, next: NextFunc
     }
   }
 };
-// checking if the user is logged in/authenticated
 
-router.post("/", async (req: Request, res: Response, next: NextFunction) => {
-  await checkIfUserHasAccount(req, res, next);
- 
-})
-
- 
-
-export default router;
