@@ -1,7 +1,7 @@
 
 import express from "express";
 import { authenticate } from "../middleware/jwtAuthenticate";
-import { getNoteFunction, createNewNoteFunction } from "../controller/noteController";
+import { getNoteFunction, createNewNoteFunction, putNewNoteFunction } from "../controller/noteController";
 
 // implementation start here
 const router = express.Router();
@@ -14,4 +14,7 @@ router.use(express.urlencoded({ extended: false }));
 router.get("/", getNoteFunction);
 // creating a new note
 router.post("/", authenticate, createNewNoteFunction);
+
+// updating new notes
+router.put("/", authenticate, putNewNoteFunction);
 export default router;

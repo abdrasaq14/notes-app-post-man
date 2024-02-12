@@ -1,9 +1,10 @@
-import express, { Request, Response, NextFunction } from "express";
-
-const sqlite3 = require("sqlite3").verbose();
-
+import { Request, Response, NextFunction } from "express";
+import sqlite3 from 'sqlite3'
+import path from "path";
+sqlite3.verbose();
+const dbPath = path.resolve(__dirname, "../../../", "database/notes.db")
 const db = new sqlite3.Database(
-  "/Users/macbook/Desktop/week-6-pod-d-abdrasaq14/lib/src/usersAndNote.db",
+  dbPath,
   sqlite3.OPEN_READWRITE,
   (err: any) => {
     if (err) return console.log(err);

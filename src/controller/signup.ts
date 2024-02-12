@@ -2,11 +2,12 @@ import createError from "http-errors";
 import express, { Request as ExpressRequest, Request, Response, NextFunction } from "express";
 import { ZodError, z } from "zod";
 import bcrypt from 'bcrypt';
-
-
-const sqlite3 = require("sqlite3").verbose();
+import sqlite3 from 'sqlite3'
+import path from "path";
+sqlite3.verbose();
+const dbPath = path.resolve(__dirname, "../../../", "database/notes.db")
 const db = new sqlite3.Database(
-  "/Users/macbook/Desktop/week-6-pod-d-abdrasaq14/lib/src/usersAndNote.db",
+  dbPath,
   sqlite3.OPEN_READWRITE,
   (err: any) => {
     if (err) return console.log(err);

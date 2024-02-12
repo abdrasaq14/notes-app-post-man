@@ -1,6 +1,6 @@
 import createError from "http-errors";
 import express, { Request, Response, NextFunction } from "express";
-import getAllUserMiddleware from "../controller/getAllUser";
+import getAllUserControllerFunction from "../controller/getAllUser";
 import signupMiddleware from '../controller/signup';
 import loginController from '../controller/login'
 
@@ -11,7 +11,7 @@ router.use(express.json());
 router.use(express.urlencoded({ extended: false }));
 
 // GET all users route
-router.get("/", getAllUserMiddleware);
+router.get("/", getAllUserControllerFunction);
 
 // Creating new user
 router.post("/signup", signupMiddleware);

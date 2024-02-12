@@ -2,25 +2,17 @@ import express, { Request, Response, NextFunction } from "express";
 import { ZodError, z } from "zod";
 import { AuthenticatedRequest } from "../../express";
 import url from 'node:url'
-
-// my database
-const sqlite3 = require("sqlite3").verbose();
+import sqlite3 from 'sqlite3'
+import path from "path";
+sqlite3.verbose();
+const dbPath = path.resolve(__dirname, "../../../", "database/notes.db")
 const db = new sqlite3.Database(
-  "/Users/macbook/Desktop/week-6-pod-d-abdrasaq14/lib/src/usersAndNote.db",
+  dbPath,
   sqlite3.OPEN_READWRITE,
   (err: any) => {
-    if (err) return console.log("why", err);
+    if (err) return console.log(err);
   }
 );
-
-
-// implementation start here
-const router = express.Router();
-
-//router.use(bodyParser.json());
-router.use(express.json());
-router.use(express.urlencoded({ extended: false }));
-
 /* GET NOTES listing. */
 
 export function getNoteFunction(req: Request, res: Response, next: NextFunction) {
@@ -61,7 +53,8 @@ export const createNewNoteFunction = async (req: AuthenticatedRequest, res: Resp
   //const userId = req.user?.UserId;
   const validation = strictNoteObjectSchema.parse(req.body);
   const { Title, description, DueDate, status } = validation;
-  const userId = req.user?.UserId
+  const userId = req.user?.UserId;
+  console.log(userId)
   const sql = `INSERT INTO Notes (
     Title, 
     description, 
@@ -70,18 +63,44 @@ export const createNewNoteFunction = async (req: AuthenticatedRequest, res: Resp
     UserId
     ) 
     VALUES (?,?,?,?,?)`;
+  
 
-  db.run(sql, [Title, description, DueDate, status, userId], function (err: Error, createdNote:any) {
+  const notesToRender = db.run(sql, [Title, description, DueDate, status, userId], function (err: Error) {
     if (err) {
       return err
     }
     else{
-      return res.status(200).json({
-      error: 'New note created successfully'
-    })
-    
-  }
-  });
+      // get the detail of the user that creates note
+      const queryUserDetail = `SELECT * FROM Users WHERE UserId = ?`;
+      const returnedUserDetailFromDatabase:any[] = []
+      db.all(queryUserDetail, [userId], function(error:Error, userDetailFromDatabase:Record<string, any>[]){
+        if(error) return error
+        else{
+          console.log(userDetailFromDatabase) 
+          returnedUserDetailFromDatabase.push(userDetailFromDatabase)
+          console.log(returnedUserDetailFromDatabase) 
+        }
+      })
+      
+    // get all notes created by the user
+      const queryNotesDetail = `SELECT * FROM Notes WHERE UserId = ?`;
+      const returnedNotesDetailFromDatabase:Record<string,any>[] = []
+        db.all(queryNotesDetail, [userId], function(error:Error, noteDetailFromDatabase:Record<string, any>[]){
+        if(error) return error
+        else{
+          returnedNotesDetailFromDatabase.push(...noteDetailFromDatabase)
+        }
+      });
+      // rendering the notes after creation
+      res.render('Dashboard', {notesToRender, returnedUserDetailFromDatabase, returnedNotesDetailFromDatabase})
+        // return res.status(200).json({
+        // message: 'New note created successfully'
+        // })
+    } 
+    });
+
+
+ 
   
   }
   catch(error){
@@ -121,30 +140,24 @@ export const putNewNoteFunction = async (req: AuthenticatedRequest, res: Respons
   try{
   //const userId = req.user?.UserId;
   const { query } = url.parse(req.url as string, true);
-  if (!query.id) {
-    res.writeHead(400, {"content-type": "text/json"});
-    res.end('Kindly supply id to delete');
+  if (!query.noteId) {
+    res.status(400).json({
+      message: 'Kindly supply noteid to update'
+    })
   }
   else{
     const validation = strictPutNotesObjectSchema.parse(req.body);
     const { Title, description, DueDate, status } = validation;
-    const userId = req.user?.UserId
-    const sql = `UPDATE Notes SET Title, description, DueDate, Status (
-      Title, 
-      description, 
-      DueDate, 
-      Status,
-      UserId
-      ) 
-      VALUES (?,?,?,?,?)`;
+    //const userId = req.user?.UserId
+    const sql = `UPDATE Notes SET Title = ?, description = ?, DueDate = ?, Status =? WHERE NoteId = ${query.noteId}`;
 
-  db.run(sql, [Title, description, DueDate, status, userId], function (err: Error, createdNote:any) {
+  db.run(sql, [Title, description, DueDate, status], function (err: Error, createdNote:any) {
     if (err) {
       return err
     }
     else{
       return res.status(200).json({
-      error: 'New note created successfully'
+      error: 'notes updated successfully'
     })
     
   }
